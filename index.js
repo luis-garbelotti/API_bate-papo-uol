@@ -33,4 +33,10 @@ server.get('/messages', (req, res) => {
 
 });
 
+server.post('/status', (req, res) => {
+
+    res.sendStatus(201);
+
+});
+
 server.listen(5000);
