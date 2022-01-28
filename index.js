@@ -16,10 +16,21 @@ server.post('/participants', (req, res) => {
 });
 
 server.get('/participants', (req, res) => {
-    console.log("qualé");
+
     res.sendStatus(201);
 
 });
 
+server.post('/messages', (req, res) => {
+
+    res.sendStatus(201);
+
+});
+
+server.get('/messages', (req, res) => {
+
+    res.sendStatus(201);
+
+});
 
 server.listen(5000);
