@@ -105,18 +105,19 @@ server.post('/messages', async (req, res) => {
 
     let mongoClient;
 
+    const message = req.body;
+    const user = req.headers.user;
+    const messageFull = {
+        from: user,
+        ...message,
+        time: dayjs().format('HH:mm:ss')
+    }
+
     try {
 
-        const message = req.body;
-        const user = req.headers.user;
-
-        const messageFull = {
-            from: user,
-            ...message,
-            time: dayjs().format('HH:mm:ss')
-        }
 
         const validation = messagesSchema.validate(messageFull, { abortEarly: false });
+
         if (validation.error) {
             const erros = validation.error.details.map(detail => detail.message);
             res.status(422).send(erros);
@@ -127,11 +128,24 @@ server.post('/messages', async (req, res) => {
         await mongoClient.connect();
 
         const dbAPIbatePapoUol = mongoClient.db('api-bate-papo-uol');
-        const messagesCollection = dbAPIbatePapoUol.collection('messages');
-        await messagesCollection.insertOne(messageFull);
 
-        res.sendStatus(201);
-        mongoClient.close();
+        const participantsCollection = dbAPIbatePapoUol.collection('participants');
+        const findParticipant = await participantsCollection.findOne({ name: messageFull.from });
+
+        if (!findParticipant) {
+
+            res.sendStatus(409);
+            mongoClient.close();
+
+        } else {
+
+            const messagesCollection = dbAPIbatePapoUol.collection('messages');
+            await messagesCollection.insertOne(messageFull);
+
+            res.sendStatus(201);
+            mongoClient.close();
+
+        }
 
     } catch (error) {
 
