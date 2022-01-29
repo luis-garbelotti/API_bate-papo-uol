@@ -13,11 +13,20 @@ server.use(json());
 
 const participantsSchema = joi.object({
     name: joi.string().min(1).required()
+});
+
+const messagesSchema = joi.object({
+    to: joi.string().required(),
+    text: joi.string().required(),
+    type: joi.valid('private_message', 'message').required(),
+    from: joi.required(),
+    time: joi.required()
 })
 
 server.post('/participants', async (req, res) => {
 
     let mongoClient;
+    const participant = req.body;
 
     const validation = participantsSchema.validate(req.body);
     if (validation.error) {
@@ -26,8 +35,6 @@ server.post('/participants', async (req, res) => {
     }
 
     try {
-
-        const participant = req.body;
 
         mongoClient = new MongoClient(process.env.MONGO_URI);
         await mongoClient.connect();
@@ -96,13 +103,65 @@ server.get('/participants', async (req, res) => {
 
 server.post('/messages', async (req, res) => {
 
-    res.sendStatus(201);
+    let mongoClient;
+
+    try {
+
+        const message = req.body;
+        const user = req.headers.user;
+
+        const messageFull = {
+            from: user,
+            ...message,
+            time: dayjs().format('HH:mm:ss')
+        }
+
+        const validation = messagesSchema.validate(messageFull, { abortEarly: false });
+        if (validation.error) {
+            const erros = validation.error.details.map(detail => detail.message);
+            res.status(422).send(erros);
+            return;
+        }
+
+        mongoClient = new MongoClient(process.env.MONGO_URI);
+        await mongoClient.connect();
+
+        const dbAPIbatePapoUol = mongoClient.db('api-bate-papo-uol');
+        const messagesCollection = dbAPIbatePapoUol.collection('messages');
+        await messagesCollection.insertOne(messageFull);
+
+        res.sendStatus(201);
+        mongoClient.close();
+
+    } catch (error) {
+
+        res.sendStatus(500);
+        mongoClient.close();
+
+    }
 
 });
 
 server.get('/messages', async (req, res) => {
 
-    res.sendStatus(200);
+    let mongoClient;
+
+    try {
+        mongoClient = new MongoClient(process.env.MONGO_URI);
+        await mongoClient.connect();
+
+        const dbAPIbatePapoUol = mongoClient.db('api-bate-papo-uol');
+        const messagesCollection = dbAPIbatePapoUol.collection('messages');
+
+        const messages = await messagesCollection.find({}).toArray();
+
+        res.send(messages);
+        mongoClient.close();
+
+    } catch (error) {
+        res.sendStatus(500);
+        mongoClient.close();
+    }
 
 });
 
