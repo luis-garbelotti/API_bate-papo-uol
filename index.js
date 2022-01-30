@@ -19,7 +19,7 @@ const messagesSchema = joi.object({
     to: joi.string().required(),
     text: joi.string().required(),
     type: joi.valid('private_message', 'message').required(),
-    from: joi.required(),
+    from: joi.string().required(),
     time: joi.required()
 })
 
@@ -164,13 +164,14 @@ server.get('/messages', async (req, res) => {
     let mongoClient;
 
     try {
+
         mongoClient = new MongoClient(process.env.MONGO_URI);
         await mongoClient.connect();
 
         const dbAPIbatePapoUol = mongoClient.db('api-bate-papo-uol');
         const messagesCollection = dbAPIbatePapoUol.collection('messages');
 
-        const messages = await messagesCollection.find({}).toArray();
+        const messages = await messagesCollection.find({ $or: [{ to: user }, { from: user }, { to: 'Todos' }] }).toArray();
 
         if (!limit) {
             res.send(messages);
