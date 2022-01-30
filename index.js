@@ -158,6 +158,9 @@ server.post('/messages', async (req, res) => {
 
 server.get('/messages', async (req, res) => {
 
+    const limit = parseInt(req.query.limit);
+    const user = req.headers.user;
+
     let mongoClient;
 
     try {
@@ -169,7 +172,15 @@ server.get('/messages', async (req, res) => {
 
         const messages = await messagesCollection.find({}).toArray();
 
-        res.send(messages);
+        if (!limit) {
+            res.send(messages);
+            mongoClient.close();
+            return;
+        }
+
+        const limitMessages = messages.slice(-limit);
+
+        res.send(limitMessages);
         mongoClient.close();
 
     } catch (error) {
