@@ -230,4 +230,46 @@ server.post('/status', async (req, res) => {
 
 });
 
+setInterval(async () => {
+
+    let mongoClient;
+
+    try {
+
+        mongoClient = new MongoClient(process.env.MONGO_URI);
+        await mongoClient.connect();
+
+        const dbAPIbatePapoUol = mongoClient.db('api-bate-papo-uol');
+        const participantsCollection = dbAPIbatePapoUol.collection('participants');
+
+        const participants = await participantsCollection.find({}).toArray();
+
+        participants.map(async participant => {
+            const timeLimit = Date.now() - participant.lastStatus;
+
+            if (timeLimit > 10000) {
+                await participantsCollection.deleteOne({
+                    _id: participant._id
+                });
+
+                const messagesCollection = dbAPIbatePapoUol.collection('messages');
+                await messagesCollection.insertOne({
+                    from: participant.name,
+                    to: 'Todos',
+                    text: 'sai da sala...',
+                    type: 'status',
+                    time: dayjs().format('HH:mm:ss')
+                });
+                mongoClient.close();
+            }
+        })
+
+    } catch (error) {
+        res.sendStatus(500);
+        mongoClient.close();
+    }
+
+
+}, 15000);
+
 server.listen(5000);
