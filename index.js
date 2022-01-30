@@ -47,7 +47,7 @@ server.post('/participants', async (req, res) => {
 
         if (!alreadyExistParticipant) {
 
-            await participantsCollection.insertOne({ ...participant, laststatus: Date.now() });
+            await participantsCollection.insertOne({ ...participant, lastStatus: Date.now() });
 
             await messagesCollection.insertOne({
                 from: participant.name,
@@ -179,9 +179,42 @@ server.get('/messages', async (req, res) => {
 
 });
 
-server.post('/status', (req, res) => {
+server.post('/status', async (req, res) => {
 
-    res.sendStatus(200);
+    let mongoClient;
+    const user = req.headers.user;
+
+    try {
+
+        mongoClient = new MongoClient(process.env.MONGO_URI);
+        await mongoClient.connect();
+
+        const dbAPIbatePapoUol = mongoClient.db('api-bate-papo-uol');
+        const participantsCollection = dbAPIbatePapoUol.collection('participants');
+        const findUser = await participantsCollection.findOne({ name: user });
+
+        if (!findUser) {
+            res.sendStatus(404);
+            mongoClient.close();
+            return;
+        }
+
+        await participantsCollection.updateOne({
+            _id: findUser._id
+        }, {
+            $set: { lastStatus: Date.now() }
+        });
+
+        res.sendStatus(200)
+        mongoClient.close();
+
+
+    } catch (error) {
+
+        res.sendStatus(500);
+        mongoClient.close();
+
+    }
 
 });
 
