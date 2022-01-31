@@ -116,11 +116,10 @@ server.post('/messages', async (req, res) => {
     try {
 
 
-        const validation = messagesSchema.validate(messageFull, { abortEarly: false });
+        const validation = messagesSchema.validate(messageFull);
 
         if (validation.error) {
-            const erros = validation.error.details.map(detail => detail.message);
-            res.status(422).send(erros);
+            res.sendStatus(422);
             return;
         }
 
@@ -134,7 +133,7 @@ server.post('/messages', async (req, res) => {
 
         if (!findParticipant) {
 
-            res.sendStatus(409);
+            res.sendStatus(422);
             mongoClient.close();
 
         } else {
@@ -259,6 +258,74 @@ server.delete('/messages/:idMessage', async (req, res) => {
         await messagesCollection.deleteOne({ _id: new ObjectId(idMessage) })
 
         res.sendStatus(200);
+        mongoClient.close();
+
+    } catch (error) {
+        res.sendStatus(500);
+        mongoClient.close();
+    }
+
+})
+
+server.put('/messages/:idMessage', async (req, res) => {
+
+    let mongoClient;
+
+    const { idMessage } = req.params;
+    const message = req.body;
+    const user = req.headers.user;
+    const messageFull = {
+        from: user,
+        ...message,
+        time: dayjs().format('HH:mm:ss')
+    }
+
+    try {
+
+        const validation = messagesSchema.validate(messageFull);
+
+        if (validation.error) {
+            res.sendStatus(422);
+            return;
+        }
+
+        mongoClient = new MongoClient(process.env.MONGO_URI);
+        await mongoClient.connect();
+
+        const dbAPIbatePapoUol = mongoClient.db('api-bate-papo-uol');
+        const participantsCollection = dbAPIbatePapoUol.collection('participants');
+        const findParticipant = await participantsCollection.findOne({ name: messageFull.from });
+
+        if (!findParticipant) {
+
+            res.sendStatus(422);
+            mongoClient.close();
+            return;
+
+        }
+
+        const messagesCollection = dbAPIbatePapoUol.collection('messages');
+        const findMessage = await messagesCollection.findOne({ _id: new ObjectId(idMessage) });
+
+        if (!findMessage) {
+            res.sendStatus(404);
+            mongoClient.close();
+            return;
+        }
+
+        if (findMessage.from !== user) {
+            res.sendStatus(401);
+            mongoClient.close();
+            return
+        }
+
+        await messagesCollection.updateOne({
+            _id: findMessage._id
+        }, {
+            $set: { ...messageFull }
+        })
+
+        res.sendStatus(201);
         mongoClient.close();
 
     } catch (error) {
