@@ -230,6 +230,44 @@ server.post('/status', async (req, res) => {
 
 });
 
+server.delete('/messages/:idMessage', async (req, res) => {
+
+    const user = req.headers.user;
+    const { idMessage } = req.params;
+
+    let mongoClient;
+
+    try {
+
+        mongoClient = new MongoClient(process.env.MONGO_URI);
+        await mongoClient.connect();
+
+        const dbAPIbatePapoUol = mongoClient.db('api-bate-papo-uol');
+        const messagesCollection = dbAPIbatePapoUol.collection('messages');
+        const messageToDelete = await messagesCollection.findOne({ _id: new ObjectId(idMessage) });
+
+        if (!messageToDelete) {
+            res.sendStatus(404);
+            return;
+        }
+
+        if (messageToDelete.from !== user) {
+            res.sendStatus(401);
+            return;
+        }
+
+        await messagesCollection.deleteOne({ _id: new ObjectId(idMessage) })
+
+        res.sendStatus(200);
+        mongoClient.close();
+
+    } catch (error) {
+        res.sendStatus(500);
+        mongoClient.close();
+    }
+
+})
+
 setInterval(async () => {
 
     let mongoClient;
@@ -265,10 +303,8 @@ setInterval(async () => {
         })
 
     } catch (error) {
-        res.sendStatus(500);
         mongoClient.close();
     }
-
 
 }, 15000);
 
